@@ -1,0 +1,201 @@
+openapi: 3.0.3
+
+info:
+  title: Review Sentiment Analyzer API
+  description: |
+    API сервиса автоматического анализа тональности отзывов.
+    Определяет, является ли отзыв положительным, нейтральным или отрицательным,
+    и возвращает уверенность ML-модели в результате.
+  version: 1.0.0
+  contact:
+    name: AI Project Team
+
+servers:
+  - url: https://example.com/api/v1
+    description: Production server
+
+tags:
+  - name: Analysis
+    description: Анализ тональности отзывов
+  - name: Models
+    description: Информация о ML-моделях
+
+paths:
+
+  /analysis:
+    post:
+      tags:
+        - Analysis
+      summary: Проанализировать отзыв
+      description: Определяет тональность переданного текста отзыва с помощью ML-модели.
+      operationId: analyzeReview
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisRequest'
+      responses:
+        '200':
+          description: Анализ выполнен успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /analysis/{id}:
+    get:
+      tags:
+        - Analysis
+      summary: Получить результат анализа по ID
+      description: Возвращает ранее выполненный анализ тональности отзыва.
+      operationId: getAnalysisById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Идентификатор результата анализа
+          schema:
+            type: integer
+            example: 123
+      responses:
+        '200':
+          description: Результат найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisResult'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /models:
+    get:
+      tags:
+        - Models
+      summary: Получить список ML-моделей
+      description: Возвращает доступные версии ML-модели для анализа тональности.
+      operationId: listModels
+      responses:
+        '200':
+          description: Список моделей
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Model'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+
+  schemas:
+
+    AnalysisRequest:
+      type: object
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          description: Текст отзыва для анализа
+          minLength: 1
+          maxLength: 5000
+          example: Отличный товар, очень доволен покупкой!
+        modelVersion:
+          type: string
+          description: Желаемая версия ML-модели (опционально)
+          example: v1.2
+
+    AnalysisResult:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 123
+        text:
+          type: string
+          example: Отличный товар, очень доволен покупкой!
+        sentiment:
+          type: string
+          enum: [positive, neutral, negative]
+          example: positive
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          example: 0.94
+        modelVersion:
+          type: string
+          example: v1.2
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-10-18T15:30:00Z'
+
+    Model:
+      type: object
+      properties:
+        version:
+          type: string
+          example: v1.2
+        description:
+          type: string
+          example: BERT-based sentiment classifier
+        languages:
+          type: array
+          items:
+            type: string
+          example: [ru, en]
+        active:
+          type: boolean
+          example: true
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          example: INVALID_TEXT
+        message:
+          type: string
+          example: Text must not be empty
+
+  responses:
+
+    BadRequest:
+      description: Некорректный запрос
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: INVALID_TEXT
+            message: Text must not be empty
+
+    NotFound:
+      description: Результат не найден
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: NOT_FOUND
+            message: Analysis result not found
+
+    InternalError:
+      description: Внутренняя ошибка сервиса
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: MODEL_UNAVAILABLE
+            message: ML model is temporarily unavailable

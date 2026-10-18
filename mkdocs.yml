@@ -14,6 +14,7 @@ markdown_extensions:
           format: !!python/name:pymdownx.superfences.fence_code_format
 
 nav:
+  - API: api/index.md
   - Главная: index.md
   - Проект:
       - Описание: project/overview.md
