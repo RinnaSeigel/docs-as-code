@@ -44,6 +44,10 @@ paths:
                 $ref: '#/components/schemas/AnalysisResult'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -61,6 +65,7 @@ paths:
           description: Идентификатор результата анализа
           schema:
             type: integer
+            minimum: 1
             example: 123
       responses:
         '200':
@@ -71,6 +76,8 @@ paths:
                 $ref: '#/components/schemas/AnalysisResult'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -90,6 +97,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Model'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -110,14 +119,24 @@ components:
           example: Отличный товар, очень доволен покупкой!
         modelVersion:
           type: string
-          description: Желаемая версия ML-модели (опционально)
+          description: |
+            Желаемая версия ML-модели (опционально).
+            Если версия не поддерживается — возвращается 422 UNSUPPORTED_MODEL_VERSION.
           example: v1.2
 
     AnalysisResult:
       type: object
+      required:
+        - id
+        - text
+        - sentiment
+        - confidence
+        - modelVersion
+        - createdAt
       properties:
         id:
           type: integer
+          minimum: 1
           example: 123
         text:
           type: string
@@ -142,6 +161,11 @@ components:
 
     Model:
       type: object
+      required:
+        - version
+        - description
+        - languages
+        - active
       properties:
         version:
           type: string
@@ -160,6 +184,9 @@ components:
 
     Error:
       type: object
+      required:
+        - code
+        - message
       properties:
         code:
           type: string
@@ -171,7 +198,7 @@ components:
   responses:
 
     BadRequest:
-      description: Некорректный запрос
+      description: Некорректный запрос (например, пустой текст)
       content:
         application/json:
           schema:
@@ -179,6 +206,16 @@ components:
           example:
             code: INVALID_TEXT
             message: Text must not be empty
+
+    UnprocessableEntity:
+      description: Запрос корректен, но содержит неподдерживаемую версию ML-модели
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: UNSUPPORTED_MODEL_VERSION
+            message: Model version 'v9.9' is not available
 
     NotFound:
       description: Результат не найден
@@ -189,6 +226,22 @@ components:
           example:
             code: NOT_FOUND
             message: Analysis result not found
+
+    RateLimited:
+      description: Превышен лимит запросов (Too Many Requests)
+      headers:
+        Retry-After:
+          description: Время в секундах до следующей попытки
+          schema:
+            type: integer
+            example: 60
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: RATE_LIMITED
+            message: Too many requests, please retry later
 
     InternalError:
       description: Внутренняя ошибка сервиса
